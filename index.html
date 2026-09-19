@@ -72,14 +72,18 @@
                     NO.{{ index + 1 }}
                 </div>
 
-                <!-- 矩形角色画像 (3:4 立绘经典比例 + 自动适应填充) -->
-                <div class="relative w-full aspect-[3/4] overflow-hidden bg-slate-950 rounded-xl border border-slate-700/50">
-                    <img 
-                        :src="item.characters.avatar_url" 
-                        :alt="item.characters.name"
-                        class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                    />
+                <!-- 矩形角色画像（动态适应图片真实比例） -->
+                <div 
+                    class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-slate-700/50 transition-all duration-300 flex items-center justify-center"
+                    :style="{ aspectRatio: item.aspectRatio || '3/4' }"
+                >
+                <img 
+                    :src="item.characters.avatar_url" 
+                    :alt="item.characters.name"
+                    @load="onImageLoad($event, item)"
+                    class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                />
                 </div>
 
                 <!-- 卡片内容 -->
@@ -116,7 +120,7 @@
                 <!-- 左选手 (矩形框) -->
                 <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-pink-500/30 flex flex-col items-center text-center relative overflow-hidden">
                     <div class="w-full max-w-[200px] aspect-[3/4] rounded-xl overflow-hidden border-2 md:border-4 border-pink-500 shadow-xl mb-4 bg-slate-950">
-                        <img :src="candidates[0].characters.avatar_url" class="w-full h-full object-cover object-top">
+                        <img :src="candidates[0].characters.avatar_url" class="w-full h-full object-contain object-top">
                     </div>
                     <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[0].characters.name }}</h3>
                     <div class="text-3xl md:text-4xl font-black text-pink-400 my-2">{{ candidates[0].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
@@ -132,7 +136,7 @@
                 <!-- 右选手 (矩形框) -->
                 <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-indigo-500/30 flex flex-col items-center text-center relative overflow-hidden">
                     <div class="w-full max-w-[200px] aspect-[3/4] rounded-xl overflow-hidden border-2 md:border-4 border-indigo-500 shadow-xl mb-4 bg-slate-950">
-                        <img :src="candidates[1].characters.avatar_url" class="w-full h-full object-cover object-top">
+                        <img :src="candidates[1].characters.avatar_url" class="w-full h-full object-contain object-top">
                     </div>
                     <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[1].characters.name }}</h3>
                     <div class="text-3xl md:text-4xl font-black text-indigo-400 my-2">{{ candidates[1].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
@@ -335,16 +339,27 @@
                 if (realtimeChannel) client.removeChannel(realtimeChannel);
             });
 
-            return {
-                loading,
-                submitting,
-                activeMatch,
-                candidates,
-                sortedCandidates,
-                pkPercentages,
-                handleVote
+            // 当图片加载成功时，自动读取原始尺寸计算宽高比
+            const onImageLoad = (event, item) => {
+            const img = event.target;
+            if (img.naturalWidth && img.naturalHeight) {
+                // 动态设置当前角色的 aspectRatio，例如 "16 / 9" 或 "1 / 1"
+                item.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+            }
             };
-        }
+
+        // 记得在 return 中暴露出去：
+        return {
+            loading,
+            submitting,
+            activeMatch,
+            candidates,
+            sortedCandidates,
+            pkPercentages,
+            handleVote,
+            onImageLoad // <--- 添加这行
+        };
+    }
     }).mount('#app');
 </script>
 </body>
