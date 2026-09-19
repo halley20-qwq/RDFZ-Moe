@@ -57,39 +57,39 @@
             <div 
                 v-for="(item, index) in sortedCandidates" 
                 :key="item.character_id"
-                class="group relative bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 hover:border-pink-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-pink-500/10 flex flex-col overflow-hidden"
+                class="group relative bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 hover:border-pink-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-pink-500/10 flex flex-col overflow-hidden p-3"
             >
                 <!-- 排名 Badge -->
                 <div 
-                    class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-md"
+                    class="absolute top-5 left-5 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-md backdrop-blur-md"
                     :class="{
                         'bg-yellow-400 text-slate-950': index === 0,
                         'bg-slate-300 text-slate-950': index === 1,
                         'bg-amber-600 text-white': index === 2,
-                        'bg-slate-900/80 text-slate-300 border border-slate-700': index > 2
+                        'bg-slate-900/90 text-slate-300 border border-slate-700': index > 2
                     }"
                 >
                     NO.{{ index + 1 }}
                 </div>
 
-                <!-- 角色头像 -->
-                <div class="relative w-full pt-[100%] overflow-hidden bg-slate-900">
+                <!-- 矩形角色画像 (3:4 立绘经典比例 + 自动适应填充) -->
+                <div class="relative w-full aspect-[3/4] overflow-hidden bg-slate-950 rounded-xl border border-slate-700/50">
                     <img 
                         :src="item.characters.avatar_url" 
                         :alt="item.characters.name"
-                        class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        class="w-full h-full object-contain object-top group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                     />
                 </div>
 
                 <!-- 卡片内容 -->
-                <div class="p-4 flex flex-col flex-grow text-center">
+                <div class="pt-3 flex flex-col flex-grow text-center">
                     <h3 class="font-bold text-base md:text-lg text-slate-100 line-clamp-1 mb-1">
                         {{ item.characters.name }}
                     </h3>
 
                     <!-- 票数显示 -->
-                    <div class="my-2">
+                    <div class="my-1">
                         <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight transition-all duration-300 inline-block">
                             {{ item.votes }}
                         </span>
@@ -113,10 +113,10 @@
             
             <!-- PK 对决卡片区域 -->
             <div class="grid grid-cols-2 gap-4 md:gap-8 items-stretch">
-                <!-- 左选手 -->
+                <!-- 左选手 (矩形框) -->
                 <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-pink-500/30 flex flex-col items-center text-center relative overflow-hidden">
-                    <div class="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-pink-500 shadow-xl mb-4">
-                        <img :src="candidates[0].characters.avatar_url" class="w-full h-full object-cover">
+                    <div class="w-full max-w-[200px] aspect-[3/4] rounded-xl overflow-hidden border-2 md:border-4 border-pink-500 shadow-xl mb-4 bg-slate-950">
+                        <img :src="candidates[0].characters.avatar_url" class="w-full h-full object-contain object-top">
                     </div>
                     <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[0].characters.name }}</h3>
                     <div class="text-3xl md:text-4xl font-black text-pink-400 my-2">{{ candidates[0].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
@@ -129,10 +129,10 @@
                     </button>
                 </div>
 
-                <!-- 右选手 -->
+                <!-- 右选手 (矩形框) -->
                 <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-indigo-500/30 flex flex-col items-center text-center relative overflow-hidden">
-                    <div class="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-indigo-500 shadow-xl mb-4">
-                        <img :src="candidates[1].characters.avatar_url" class="w-full h-full object-cover">
+                    <div class="w-full max-w-[200px] aspect-[3/4] rounded-xl overflow-hidden border-2 md:border-4 border-indigo-500 shadow-xl mb-4 bg-slate-950">
+                        <img :src="candidates[1].characters.avatar_url" class="w-full h-full object-contain object-top">
                     </div>
                     <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[1].characters.name }}</h3>
                     <div class="text-3xl md:text-4xl font-black text-indigo-400 my-2">{{ candidates[1].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
