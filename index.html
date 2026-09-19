@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>萌战 2026 - 实时投票</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Supabase JS SDK v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Canvas Confetti 庆祝特效 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .font-anime { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #31103f 100%); }
+    </style>
+</head>
+<body class="gradient-bg text-slate-100 min-h-screen font-anime antialiased selection:bg-pink-500 selection:text-white">
+
+<div id="app" v-cloak class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- 顶部 Header -->
+    <header class="text-center mb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-xs font-semibold mb-3">
+            <span class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
+            MOE BATTLE 2026 · REALTIME VOTE
+        </div>
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-400">
+            {{ activeMatch ? activeMatch.title : '萌战投票系统' }}
+        </h1>
+        <p class="text-slate-400 text-sm mt-2">
+            票数与排名实时同步 · 每人每场限投一票
+        </p>
+    </header>
+
+    <!-- 加载中状态 -->
+    <div v-if="loading" class="flex flex-col items-center justify-center py-20 text-slate-400">
+        <div class="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p>正在同步赛程与实时票数...</p>
+    </div>
+
+    <!-- 无比赛状态 -->
+    <div v-else-if="!activeMatch" class="text-center py-20 bg-slate-800/50 backdrop-blur rounded-2xl border border-slate-700/50 max-w-lg mx-auto">
+        <div class="text-5xl mb-4">☕</div>
+        <h3 class="text-xl font-bold text-slate-200">当前暂无进行中的赛程</h3>
+        <p class="text-slate-400 text-sm mt-2">请等待管理员开启下一轮小组赛或 1v1 淘汰赛</p>
+    </div>
+
+    <!-- 比赛区域 -->
+    <main v-else>
+
+        <!-- 模式一：小组赛网格布局 (match_type === 'group') -->
+        <div v-if="activeMatch.match_type === 'group'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div 
+                v-for="(item, index) in sortedCandidates" 
+                :key="item.character_id"
+                class="group relative bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 hover:border-pink-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-pink-500/10 flex flex-col overflow-hidden"
+            >
+                <!-- 排名 Badge -->
+                <div 
+                    class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-md"
+                    :class="{
+                        'bg-yellow-400 text-slate-950': index === 0,
+                        'bg-slate-300 text-slate-950': index === 1,
+                        'bg-amber-600 text-white': index === 2,
+                        'bg-slate-900/80 text-slate-300 border border-slate-700': index > 2
+                    }"
+                >
+                    NO.{{ index + 1 }}
+                </div>
+
+                <!-- 角色头像 -->
+                <div class="relative w-full pt-[100%] overflow-hidden bg-slate-900">
+                    <img 
+                        :src="item.characters.avatar_url" 
+                        :alt="item.characters.name"
+                        class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                    />
+                </div>
+
+                <!-- 卡片内容 -->
+                <div class="p-4 flex flex-col flex-grow text-center">
+                    <h3 class="font-bold text-base md:text-lg text-slate-100 line-clamp-1 mb-1">
+                        {{ item.characters.name }}
+                    </h3>
+
+                    <!-- 票数显示 -->
+                    <div class="my-2">
+                        <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight transition-all duration-300 inline-block">
+                            {{ item.votes }}
+                        </span>
+                        <span class="text-xs text-slate-400 ml-1">票</span>
+                    </div>
+
+                    <!-- 投票按钮 -->
+                    <button 
+                        @click="handleVote(item.character_id)"
+                        :disabled="submitting"
+                        class="mt-auto w-full py-2.5 px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 active:scale-95 text-white font-semibold rounded-xl transition shadow-lg shadow-pink-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-1"
+                    >
+                        <span>投她一票</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模式二：1v1 淘汰赛 PK 布局 (match_type === 'pk') -->
+        <div v-else-if="activeMatch.match_type === 'pk' && candidates.length >= 2" class="max-w-3xl mx-auto">
+            
+            <!-- PK 对决卡片区域 -->
+            <div class="grid grid-cols-2 gap-4 md:gap-8 items-stretch">
+                <!-- 左选手 -->
+                <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-pink-500/30 flex flex-col items-center text-center relative overflow-hidden">
+                    <div class="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-pink-500 shadow-xl mb-4">
+                        <img :src="candidates[0].characters.avatar_url" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[0].characters.name }}</h3>
+                    <div class="text-3xl md:text-4xl font-black text-pink-400 my-2">{{ candidates[0].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
+                    <button 
+                        @click="handleVote(candidates[0].character_id)"
+                        :disabled="submitting"
+                        class="mt-auto w-full py-3 bg-pink-500 hover:bg-pink-600 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/30 text-sm md:text-base"
+                    >
+                        应援 (LEFT)
+                    </button>
+                </div>
+
+                <!-- 右选手 -->
+                <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-6 border-2 border-indigo-500/30 flex flex-col items-center text-center relative overflow-hidden">
+                    <div class="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-indigo-500 shadow-xl mb-4">
+                        <img :src="candidates[1].characters.avatar_url" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="font-bold text-lg md:text-2xl text-slate-100 mb-1">{{ candidates[1].characters.name }}</h3>
+                    <div class="text-3xl md:text-4xl font-black text-indigo-400 my-2">{{ candidates[1].votes }} <span class="text-xs text-slate-400 font-normal">票</span></div>
+                    <button 
+                        @click="handleVote(candidates[1].character_id)"
+                        :disabled="submitting"
+                        class="mt-auto w-full py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/30 text-sm md:text-base"
+                    >
+                        应援 (RIGHT)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 1v1 PK 实时百分比进度条 -->
+            <div class="mt-8 bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+                <div class="flex justify-between text-xs md:text-sm font-bold mb-2">
+                    <span class="text-pink-400">{{ pkPercentages.left }}%</span>
+                    <span class="text-slate-400">实时得票比例</span>
+                    <span class="text-indigo-400">{{ pkPercentages.right }}%</span>
+                </div>
+                <div class="h-4 w-full bg-indigo-900/60 rounded-full overflow-hidden flex p-0.5 border border-slate-700">
+                    <div 
+                        class="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all duration-500 ease-out" 
+                        :style="{ width: pkPercentages.left + '%' }"
+                    ></div>
+                    <div 
+                        class="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-500 ease-out" 
+                        :style="{ width: pkPercentages.right + '%' }"
+                    ></div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="mt-16 text-center text-xs text-slate-500 border-t border-slate-800/80 pt-6">
+        Powered by Supabase Realtime & Vue 3 · 萌战委员会
+    </footer>
+
+</div>
+
+<script>
+    // ============================================================
+    // 1. 配置信息（替换为你自己的 Supabase 项目参数）
+    // ============================================================
+    const SUPABASE_URL = 'https://nszewgdsqxqcegsdwdvq.supabase.co/rest/v1/';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zemV3Z2RzcXhxY2Vnc2R3ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MTI3NDUsImV4cCI6MjEwNTM4ODc0NX0.Js6XgYlVgZdbCHsNvnbp5K7Q_rSl_pS6EBv-lGtNykY';
+
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+    const { createClient } = supabase;
+
+    createApp({
+        setup() {
+            const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const loading = ref(true);
+            const submitting = ref(false);
+            const activeMatch = ref(null);
+            const candidates = ref([]);
+            let realtimeChannel = null;
+
+            // 获取或初始化本机指纹 (UUID)
+            const getVoterIdentity = () => {
+                let id = localStorage.getItem('moe_voter_uuid');
+                if (!id) {
+                    id = crypto.randomUUID();
+                    localStorage.setItem('moe_voter_uuid', id);
+                }
+                return id;
+            };
+
+            // 1. 获取当前进行中的赛程及选手
+            const fetchActiveMatch = async () => {
+                loading.value = true;
+                try {
+                    // 查询 status = 1 (进行中) 的比赛
+                    const { data: matchData, error: matchErr } = await client
+                        .from('matches')
+                        .select('*')
+                        .eq('status', 1)
+                        .order('created_at', { ascending: false })
+                        .maybeSingle();
+
+                    if (matchErr) throw matchErr;
+
+                    if (!matchData) {
+                        activeMatch.value = null;
+                        candidates.value = [];
+                        return;
+                    }
+
+                    activeMatch.value = matchData;
+
+                    // 获取选手及关联的角色照片信息
+                    const { data: candidateData, error: candErr } = await client
+                        .from('match_candidates')
+                        .select(`
+                            id,
+                            match_id,
+                            character_id,
+                            votes,
+                            characters ( id, name, avatar_url )
+                        `)
+                        .eq('match_id', matchData.id);
+
+                    if (candErr) throw candErr;
+
+                    candidates.value = candidateData || [];
+
+                    // 开启 Realtime 监听
+                    setupRealtimeSubscription(matchData.id);
+
+                } catch (err) {
+                    console.error('初始化数据失败:', err);
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            // 2. 设置 Supabase Realtime 监听
+            const setupRealtimeSubscription = (matchId) => {
+                if (realtimeChannel) client.removeChannel(realtimeChannel);
+
+                realtimeChannel = client
+                    .channel(`realtime-match-${matchId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'match_candidates',
+                            filter: `match_id=eq.${matchId}`
+                        },
+                        (payload) => {
+                            // 收到数据库广播后，局部更新对应的票数
+                            const updatedItem = candidates.value.find(c => c.character_id === payload.new.character_id);
+                            if (updatedItem) {
+                                updatedItem.votes = payload.new.votes;
+                            }
+                        }
+                    )
+                    .subscribe();
+            };
+
+            // 3. 提交投票 API (调用数据库 RPC 函数 submit_vote)
+            const handleVote = async (characterId) => {
+                if (!activeMatch.value) return;
+                submitting.value = true;
+
+                try {
+                    const voterId = getVoterIdentity();
+                    const { data, error } = await client.rpc('submit_vote', {
+                        p_match_id: activeMatch.value.id,
+                        p_character_id: characterId,
+                        p_voter_identity: voterId
+                    });
+
+                    if (error) throw error;
+
+                    if (data.success) {
+                        // 触发全屏庆祝礼花
+                        confetti({
+                            particleCount: 80,
+                            spread: 60,
+                            origin: { y: 0.8 }
+                        });
+                        alert('🎉 ' + data.message);
+                    } else {
+                        alert('⚠️ ' + data.message);
+                    }
+                } catch (err) {
+                    alert('投票异常: ' + (err.message || '网络连接失败'));
+                } finally {
+                    submitting.value = false;
+                }
+            };
+
+            // 计算属性：小组赛按票数从高到低排序
+            const sortedCandidates = computed(() => {
+                return [...candidates.value].sort((a, b) => b.votes - a.votes);
+            });
+
+            // 计算属性：1v1 PK 得票百分比
+            const pkPercentages = computed(() => {
+                if (candidates.value.length < 2) return { left: 50, right: 50 };
+                const v1 = candidates.value[0].votes || 0;
+                const v2 = candidates.value[1].votes || 0;
+                const total = v1 + v2;
+                if (total === 0) return { left: 50, right: 50 };
+                const left = Math.round((v1 / total) * 100);
+                return { left, right: 100 - left };
+            });
+
+            onMounted(() => {
+                fetchActiveMatch();
+            });
+
+            onUnmounted(() => {
+                if (realtimeChannel) client.removeChannel(realtimeChannel);
+            });
+
+            return {
+                loading,
+                submitting,
+                activeMatch,
+                candidates,
+                sortedCandidates,
+                pkPercentages,
+                handleVote
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
