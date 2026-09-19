@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co'
-const supabaseAnonKey = 'YOUR_ANON_KEY'
+const supabaseUrl = 'https://nszewgdsqxqcegsdwdvq.supabase.co/rest/v1/'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zemV3Z2RzcXhxY2Vnc2R3ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MTI3NDUsImV4cCI6MjEwNTM4ODc0NX0.Js6XgYlVgZdbCHsNvnbp5K7Q_rSl_pS6EBv-lGtNykY'
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // 1. 客户端设备标识生成（用于基础防刷）
