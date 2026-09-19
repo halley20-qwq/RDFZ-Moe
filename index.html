@@ -57,7 +57,7 @@
             <div 
                 v-for="(item, index) in sortedCandidates" 
                 :key="item.character_id"
-                class="group relative bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 hover:border-pink-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-pink-500/10 flex flex-col overflow-hidden p-3"
+                class="group relative bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 hover:border-pink-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-pink-500/10 flex flex-col p-3.5 overflow-hidden"
             >
                 <!-- 排名 Badge -->
                 <div 
@@ -72,7 +72,7 @@
                     NO.{{ index + 1 }}
                 </div>
 
-                <!-- 矩形角色画像（纯 CSS 零 JS 自动适应图片真实比例） -->
+                <!-- 1. 矩形角色画像（纯 CSS 零 JS 自动撑开，保持图片原始比例） -->
                 <div class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-slate-700/50 min-h-[160px] flex items-center justify-center">
                     <img 
                         :src="item.characters.avatar_url" 
@@ -82,17 +82,16 @@
                     />
                 </div>
 
-                <!-- 卡片下方文字与按钮区域 -->
-                <div class="pt-3 flex flex-col flex-grow text-center">
-
-                    <!-- 1. 名字区域：固定 12 单元高度，1~2 行文字均能垂直居中，不挤压下方票数 -->
-                    <div class="h-12 flex items-center justify-center px-1">
+                <!-- 2. 下方文字与按钮整体（mt-auto 将整体推至卡片底部，贴近按钮） -->
+                <div class="mt-auto pt-3.5 flex flex-col text-center">
+                    <!-- 名字区域：固定 44px 高度，垂直居中 -->
+                    <div class="h-11 flex items-center justify-center px-1">
                         <h3 class="font-bold text-sm md:text-base text-slate-100 leading-snug line-clamp-2">
                             {{ item.characters.name }}
                         </h3>
                     </div>
 
-                    <!-- 2. 票数区域：数字与“票”字基线对齐 (items-baseline) -->
+                    <!-- 票数区域：固定 36px 高度，基线对齐 -->
                     <div class="h-9 flex items-baseline justify-center gap-0.5 my-1">
                         <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight leading-none">
                             {{ item.votes }}
@@ -100,13 +99,13 @@
                         <span class="text-xs text-slate-400 font-normal">票</span>
                     </div>
 
-                    <!-- 3. 按钮始终自动吸附在卡片最底部 -->
+                    <!-- 投票按钮 -->
                     <button 
                         @click="handleVote(item.character_id)"
                         :disabled="submitting"
-                        class="mt-auto w-full py-2.5 px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 active:scale-95 text-white font-semibold rounded-xl transition shadow-lg shadow-pink-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        class="w-full py-2.5 px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 active:scale-95 text-white font-semibold rounded-xl transition shadow-lg shadow-pink-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                     >
-                        投Ta一票
+                        投她一票
                     </button>
                 </div>
             </div>
@@ -114,19 +113,18 @@
 
         <!-- 模式二：1v1 淘汰赛 PK 布局 (match_type === 'pk') -->
         <div v-else-if="activeMatch.match_type === 'pk' && candidates.length >= 2" class="max-w-3xl mx-auto">
-            
+                        
             <!-- PK 对决卡片区域 (双列网格) -->
             <div class="grid grid-cols-2 gap-4 md:gap-8 items-stretch">
                 
                 <!-- 左选手 (红/粉色系 PK 卡片) -->
                 <div class="group bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-5 border-2 border-pink-500/40 hover:border-pink-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-lg shadow-pink-500/5">
-                    <!-- 左侧阵营标识 -->
-                    <div class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-pink-500 text-white shadow-md">
+                    <div class="absolute top-6 left-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-pink-500 text-white shadow-md">
                         LEFT
                     </div>
 
-                    <!-- 矩形角色画像 (纯 CSS 自动适应图片真实比例，不拉伸) -->
-                    <div class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-pink-500/30 min-h-[160px] flex items-center justify-center mb-3">
+                    <!-- 纯 CSS 自动撑开相框 -->
+                    <div class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-pink-500/30 min-h-[160px] flex items-center justify-center">
                         <img 
                             :src="candidates[0].characters.avatar_url" 
                             :alt="candidates[0].characters.name"
@@ -135,16 +133,14 @@
                         />
                     </div>
 
-                    <!-- 内容区域：名字与票数对齐 -->
-                    <div class="flex flex-col flex-grow text-center">
-                        <!-- 1. 名字区域：固定高度 + 垂直居中，支持 1-2 行防拉伸 -->
-                        <div class="h-12 flex items-center justify-center px-1">
+                    <!-- mt-auto 强行把名字、票数与按钮打包沉底 -->
+                    <div class="mt-auto pt-3.5 flex flex-col text-center">
+                        <div class="h-11 flex items-center justify-center px-1">
                             <h3 class="font-bold text-base md:text-xl text-slate-100 leading-snug line-clamp-2">
                                 {{ candidates[0].characters.name }}
                             </h3>
                         </div>
 
-                        <!-- 2. 票数区域：数字与“票”字基线对齐 -->
                         <div class="h-10 flex items-baseline justify-center gap-0.5 my-1">
                             <span class="text-3xl md:text-4xl font-black text-pink-400 tracking-tight leading-none">
                                 {{ candidates[0].votes }}
@@ -152,26 +148,24 @@
                             <span class="text-xs text-slate-400 font-normal">票</span>
                         </div>
 
-                        <!-- 3. 按钮：mt-auto 强制吸附在底部 -->
                         <button 
                             @click="handleVote(candidates[0].character_id)"
                             :disabled="submitting"
-                            class="mt-auto w-full py-3 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/25 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                            class="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/25 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                         >
-                            为Ta应援
+                            为她应援
                         </button>
                     </div>
                 </div>
 
                 <!-- 右选手 (蓝/紫色系 PK 卡片) -->
                 <div class="group bg-slate-800/80 backdrop-blur rounded-2xl p-4 md:p-5 border-2 border-indigo-500/40 hover:border-indigo-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-lg shadow-indigo-500/5">
-                    <!-- 右侧阵营标识 -->
-                    <div class="absolute top-3 right-3 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-indigo-500 text-white shadow-md">
+                    <div class="absolute top-6 right-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-indigo-500 text-white shadow-md">
                         RIGHT
                     </div>
 
-                    <!-- 矩形角色画像 (纯 CSS 自动适应图片真实比例，不拉伸) -->
-                    <div class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-indigo-500/30 min-h-[160px] flex items-center justify-center mb-3">
+                    <!-- 纯 CSS 自动撑开相框 -->
+                    <div class="relative w-full overflow-hidden bg-slate-950 rounded-xl border border-indigo-500/30 min-h-[160px] flex items-center justify-center">
                         <img 
                             :src="candidates[1].characters.avatar_url" 
                             :alt="candidates[1].characters.name"
@@ -180,16 +174,14 @@
                         />
                     </div>
 
-                    <!-- 内容区域：名字与票数对齐 -->
-                    <div class="flex flex-col flex-grow text-center">
-                        <!-- 1. 名字区域：固定高度 + 垂直居中，支持 1-2 行防拉伸 -->
-                        <div class="h-12 flex items-center justify-center px-1">
+                    <!-- mt-auto 强行把名字、票数与按钮打包沉底 -->
+                    <div class="mt-auto pt-3.5 flex flex-col text-center">
+                        <div class="h-11 flex items-center justify-center px-1">
                             <h3 class="font-bold text-base md:text-xl text-slate-100 leading-snug line-clamp-2">
                                 {{ candidates[1].characters.name }}
                             </h3>
                         </div>
 
-                        <!-- 2. 票数区域：数字与“票”字基线对齐 -->
                         <div class="h-10 flex items-baseline justify-center gap-0.5 my-1">
                             <span class="text-3xl md:text-4xl font-black text-indigo-400 tracking-tight leading-none">
                                 {{ candidates[1].votes }}
@@ -197,13 +189,12 @@
                             <span class="text-xs text-slate-400 font-normal">票</span>
                         </div>
 
-                        <!-- 3. 按钮：mt-auto 强制吸附在底部 -->
                         <button 
                             @click="handleVote(candidates[1].character_id)"
                             :disabled="submitting"
-                            class="mt-auto w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                            class="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                         >
-                            为Ta应援
+                            为她应援
                         </button>
                     </div>
                 </div>
