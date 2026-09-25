@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Canvas Confetti 特效 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- 引入 FingerprintJS 官方 v4 CDN -->
+    <script src="https://openfpcdn.io/fingerprintjs/v4"></script>
     <style>
         [v-cloak] { display: none; }
         .font-anime { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
@@ -257,7 +259,7 @@
 
     <!-- 页脚 -->
     <footer class="mt-16 text-center text-xs text-slate-400/80 border-t border-white/10 pt-6">
-        Powered by Supabase Realtime & Vue 3 · 萌战委员会
+        Powered by Supabase Realtime, FingerprintJS & Vue 3 · RDFZ萌战委员会
     </footer>
 
 </div>
@@ -277,33 +279,48 @@
             const activeMatch = ref(null);
             const candidates = ref([]);
             const myVotedCharacterIds = ref([]);
+            const visitorId = ref(''); // 硬件指纹 ID
             let realtimeChannel = null;
 
-            const getVoterIdentity = () => {
-                let id = localStorage.getItem('moe_voter_uuid');
-                if (!id) {
-                    id = crypto.randomUUID();
-                    localStorage.setItem('moe_voter_uuid', id);
+            // 1. 初始化 FingerprintJS 获取设备识别指纹
+            const initFingerprint = async () => {
+                try {
+                    const fp = await FingerprintJS.load();
+                    const result = await fp.get();
+                    visitorId.value = result.visitorId;
+                    console.log('当前设备识别指纹:', visitorId.value);
+                } catch (e) {
+                    console.error('指纹初始化失败，降级为本地指纹:', e);
+                    let fallbackId = localStorage.getItem('fp_fallback_uuid');
+                    if (!fallbackId) {
+                        fallbackId = crypto.randomUUID();
+                        localStorage.setItem('fp_fallback_uuid', fallbackId);
+                    }
+                    visitorId.value = fallbackId;
                 }
-                return id;
             };
 
+            // 2. 拉取当前设备指纹在当前场次的已投记录
             const fetchUserVotes = async (matchId) => {
-                const voterId = getVoterIdentity();
+                if (!visitorId.value) return;
+
                 const { data } = await client
                     .from('vote_logs')
                     .select('character_id')
                     .eq('match_id', matchId)
-                    .eq('voter_identity', voterId);
+                    .eq('voter_identity', visitorId.value);
 
                 if (data) {
                     myVotedCharacterIds.value = data.map(item => item.character_id);
                 }
             };
 
+            // 3. 拉取进行中的比赛
             const fetchActiveMatch = async () => {
                 loading.value = true;
                 try {
+                    await initFingerprint(); // 先计算硬件指纹
+
                     const { data: matchData, error: matchErr } = await client
                         .from('matches')
                         .select('*')
@@ -340,12 +357,13 @@
                     setupRealtimeSubscription(matchData.id);
 
                 } catch (err) {
-                    console.error('初始化数据失败:', err);
+                    console.error('数据加载失败:', err);
                 } finally {
                     loading.value = false;
                 }
             };
 
+            // 4. Supabase Realtime 订阅
             const setupRealtimeSubscription = (matchId) => {
                 if (realtimeChannel) client.removeChannel(realtimeChannel);
 
@@ -369,16 +387,16 @@
                     .subscribe();
             };
 
+            // 5. 触发投票 (将 visitorId 提交至数据库)
             const handleVote = async (characterId) => {
-                if (!activeMatch.value) return;
+                if (!activeMatch.value || !visitorId.value) return;
                 submitting.value = true;
 
                 try {
-                    const voterId = getVoterIdentity();
                     const { data, error } = await client.rpc('submit_vote', {
                         p_match_id: activeMatch.value.id,
                         p_character_id: characterId,
-                        p_voter_identity: voterId
+                        p_voter_identity: visitorId.value
                     });
 
                     if (error) throw error;
