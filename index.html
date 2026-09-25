@@ -184,7 +184,8 @@
                             </button>
                         </div>
                     </div>
-                    <!-- 1v1 PK 实时百分比拔河进度条 (变长加宽 + 居中显示) -->
+                </div>
+                <!-- 1v1 PK 实时百分比拔河进度条 (变长加宽 + 居中显示) -->
                 <div class="mt-8 md:mt-10 max-w-4xl mx-auto bg-slate-900/40 backdrop-blur-md p-5 md:p-6 rounded-2xl border border-white/10 shadow-2xl">
                     
                     <!-- 顶部对齐：左右角色比例与正中央居中标牌 -->
@@ -195,12 +196,6 @@
                             <span class="truncate">{{ candidates[0].characters.name }}</span>
                             <span class="text-pink-300 font-black ml-1 text-sm md:text-base">{{ pkPercentages.left }}%</span>
                         </div>
-                        
-                        <!-- 居中标牌 -->
-                        <div class="text-slate-300/90 font-black tracking-wider text-xs px-3.5 py-1 rounded-full bg-slate-950/70 border border-white/10 shadow-inner shrink-0">
-                            VS 实时得票比例
-                        </div>
-
                         <!-- 右选手比例 (右对齐) -->
                         <div class="text-indigo-400 flex items-center justify-end gap-1.5 truncate max-w-[35%]">
                             <span class="text-indigo-300 font-black mr-1 text-sm md:text-base">{{ pkPercentages.right }}%</span>
