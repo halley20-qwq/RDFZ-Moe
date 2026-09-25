@@ -184,6 +184,30 @@
                             </button>
                         </div>
                     </div>
+                    <!-- 补回：1v1 PK 实时百分比拔河进度条 -->
+                <div class="mt-6 md:mt-8 bg-slate-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl">
+                    <div class="flex justify-between text-xs md:text-sm font-bold mb-2">
+                        <span class="text-pink-400 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
+                            {{ candidates[0].characters.name }}: {{ pkPercentages.left }}%
+                        </span>
+                        <span class="text-slate-400 hidden sm:inline">实时得票比例</span>
+                        <span class="text-indigo-400 flex items-center gap-1">
+                            {{ candidates[1].characters.name }}: {{ pkPercentages.right }}%
+                            <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                        </span>
+                    </div>
+                    <!-- 动态拔河轨道 -->
+                    <div class="h-4 w-full bg-slate-950/80 rounded-full overflow-hidden flex p-0.5 border border-white/10">
+                        <div 
+                            class="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all duration-500 ease-out shadow-sm" 
+                            :style="{ width: pkPercentages.left + '%' }"
+                        ></div>
+                        <div 
+                            class="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-500 ease-out shadow-sm" 
+                            :style="{ width: pkPercentages.right + '%' }"
+                        ></div>
+                    </div>
                 </div>
             </div>
         </main>
