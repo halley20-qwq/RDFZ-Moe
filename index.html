@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>萌战 2026 - 实时投票</title>
+    <title>RDFZ萌战 2026 - 实时投票</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Vue 3 CDN -->
@@ -20,7 +20,7 @@
         
         /* 1. 移动端与桌面端背景图配置 */
         .page-bg {
-            /* 移动端默认背景图 (竖版二次元夜空) */
+            /* 移动端背景图 (凉宫春日) */
             background-image: url('https://img.remit.ee/i/rYHUq96tRQBK');
             background-position: center top;
             background-size: cover;
@@ -28,7 +28,7 @@
         }
         @media (min-width: 768px) {
             .page-bg {
-                /* 桌面端/平板背景图 (横版二次元星空星轨) */
+                /* 桌面端/平板背景图 (败犬女主) */
                 background-image: url('https://img.remit.ee/i/fAqnmOU4E7e3');
             }
         }
@@ -45,7 +45,7 @@
     <header class="text-center mb-6 p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 text-xs font-semibold mb-3 backdrop-blur-sm">
             <span class="w-2 h-2 rounded-full bg-pink-400 animate-pulse"></span>
-            MOE BATTLE 2026
+            RDFZ MOE BATTLE 2026
         </div>
         <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-200 to-indigo-300 drop-shadow mb-4">
             萌战投票系统
@@ -147,7 +147,7 @@
                         >
                             <span v-if="myVotedCharacterIds.includes(item.character_id)">已应援 ✓</span>
                             <span v-else-if="usedVotes >= maxVotes">额度已用完</span>
-                            <span v-else>投她一票</span>
+                            <span v-else>投Ta一票</span>
                         </button>
                     </div>
                 </div>
@@ -166,7 +166,7 @@
                             <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ candidates[0].characters.name }}</h3></div>
                             <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-pink-400 leading-none drop-shadow">{{ candidates[0].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
                             <button @click="handleVote(candidates[0].character_id)" :disabled="submitting || myVotedCharacterIds.includes(candidates[0].character_id)" class="w-full py-3 bg-gradient-to-r from-pink-500/90 to-rose-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/25 text-sm md:text-base disabled:opacity-50">
-                                {{ myVotedCharacterIds.includes(candidates[0].character_id) ? '已应援 ✓' : '为她应援' }}
+                                {{ myVotedCharacterIds.includes(candidates[0].character_id) ? '已应援 ✓' : '为Ta应援' }}
                             </button>
                         </div>
                     </div>
@@ -180,7 +180,7 @@
                             <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ candidates[1].characters.name }}</h3></div>
                             <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-indigo-400 leading-none drop-shadow">{{ candidates[1].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
                             <button @click="handleVote(candidates[1].character_id)" :disabled="submitting || myVotedCharacterIds.includes(candidates[1].character_id)" class="w-full py-3 bg-gradient-to-r from-indigo-500/90 to-purple-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/25 text-sm md:text-base disabled:opacity-50">
-                                {{ myVotedCharacterIds.includes(candidates[1].character_id) ? '已应援 ✓' : '为她应援' }}
+                                {{ myVotedCharacterIds.includes(candidates[1].character_id) ? '已应援 ✓' : '为Ta应援' }}
                             </button>
                         </div>
                     </div>
@@ -209,7 +209,7 @@
         <div v-if="!selectedHistoryMatch" class="text-center py-20 bg-slate-900/40 backdrop-blur-md rounded-3xl border border-white/10 max-w-lg mx-auto shadow-2xl">
             <div class="text-5xl mb-4">📜</div>
             <h3 class="text-xl font-bold text-slate-100">暂无已结算的历史赛程</h3>
-            <p class="text-slate-300/70 text-sm mt-2">管理员在后台结算赛程（修改 status = 2）后，结果将在此显示</p>
+            <p class="text-slate-300/70 text-sm mt-2">管理员在后台结算赛程后，结果将在此显示</p>
         </div>
 
         <main v-else>
@@ -283,7 +283,7 @@
 
     <!-- 页脚 -->
     <footer class="mt-16 text-center text-xs text-slate-400/80 border-t border-white/10 pt-6">
-        Powered by Supabase Realtime & FingerprintJS · 萌战委员会
+        Powered by Supabase Realtime, Vue 3 & FingerprintJS ｜ © 2026 RDFZ冻鳗社萌战筹备组. All rights reserved. 
     </footer>
 
 </div>
