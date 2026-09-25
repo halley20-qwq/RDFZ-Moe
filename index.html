@@ -184,30 +184,49 @@
                             </button>
                         </div>
                     </div>
-                    <!-- 补回：1v1 PK 实时百分比拔河进度条 -->
-                <div class="mt-6 md:mt-8 bg-slate-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl">
-                    <div class="flex justify-between text-xs md:text-sm font-bold mb-2">
-                        <span class="text-pink-400 flex items-center gap-1">
-                            <span class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
-                            {{ candidates[0].characters.name }}: {{ pkPercentages.left }}%
-                        </span>
-                        <span class="text-slate-400 hidden sm:inline">实时得票比例</span>
-                        <span class="text-indigo-400 flex items-center gap-1">
-                            {{ candidates[1].characters.name }}: {{ pkPercentages.right }}%
-                            <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                        </span>
+                    <!-- 1v1 PK 实时百分比拔河进度条 (变长加宽 + 居中显示) -->
+                <div class="mt-8 md:mt-10 max-w-4xl mx-auto bg-slate-900/40 backdrop-blur-md p-5 md:p-6 rounded-2xl border border-white/10 shadow-2xl">
+                    
+                    <!-- 顶部对齐：左右角色比例与正中央居中标牌 -->
+                    <div class="flex items-center justify-between text-xs md:text-sm font-bold mb-3 px-1">
+                        <!-- 左选手比例 (左对齐) -->
+                        <div class="text-pink-400 flex items-center gap-1.5 truncate max-w-[35%]">
+                            <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse shrink-0"></span>
+                            <span class="truncate">{{ candidates[0].characters.name }}</span>
+                            <span class="text-pink-300 font-black ml-1 text-sm md:text-base">{{ pkPercentages.left }}%</span>
+                        </div>
+                        
+                        <!-- 居中标牌 -->
+                        <div class="text-slate-300/90 font-black tracking-wider text-xs px-3.5 py-1 rounded-full bg-slate-950/70 border border-white/10 shadow-inner shrink-0">
+                            VS 实时得票比例
+                        </div>
+
+                        <!-- 右选手比例 (右对齐) -->
+                        <div class="text-indigo-400 flex items-center justify-end gap-1.5 truncate max-w-[35%]">
+                            <span class="text-indigo-300 font-black mr-1 text-sm md:text-base">{{ pkPercentages.right }}%</span>
+                            <span class="truncate">{{ candidates[1].characters.name }}</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                        </div>
                     </div>
-                    <!-- 动态拔河轨道 -->
-                    <div class="h-4 w-full bg-slate-950/80 rounded-full overflow-hidden flex p-0.5 border border-white/10">
+
+                    <!-- 变长加粗拔河轨道 (h-6 高度 + 内部百分比数值) -->
+                    <div class="h-6 w-full bg-slate-950/80 rounded-full overflow-hidden flex p-1 border border-white/10 shadow-inner">
+                        <!-- 红粉方 -->
                         <div 
-                            class="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all duration-500 ease-out shadow-sm" 
+                            class="h-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-400 rounded-full transition-all duration-500 ease-out shadow-md shadow-pink-500/30 flex items-center justify-end pr-2" 
                             :style="{ width: pkPercentages.left + '%' }"
-                        ></div>
+                        >
+                            <span v-if="pkPercentages.left >= 12" class="text-[10px] font-black text-white drop-shadow">{{ pkPercentages.left }}%</span>
+                        </div>
+                        <!-- 蓝紫方 -->
                         <div 
-                            class="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-500 ease-out shadow-sm" 
+                            class="h-full bg-gradient-to-r from-indigo-400 via-indigo-500 to-purple-600 rounded-full transition-all duration-500 ease-out shadow-md shadow-indigo-500/30 flex items-center justify-start pl-2" 
                             :style="{ width: pkPercentages.right + '%' }"
-                        ></div>
+                        >
+                            <span v-if="pkPercentages.right >= 12" class="text-[10px] font-black text-white drop-shadow">{{ pkPercentages.right }}%</span>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </main>
