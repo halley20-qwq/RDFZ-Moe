@@ -104,13 +104,28 @@
                 </div>
             </div>
 
-            <!-- 小组赛网格 -->
-            <div v-if="activeMatch.match_type === 'group'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- 1. 小组赛网格布局 (纯本地勾选状态) -->
+            <div v-if="activeMatch.match_type === 'group'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-24">
                 <div 
                     v-for="(item, index) in sortedCandidates" 
                     :key="item.character_id"
-                    class="group relative bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/10 hover:border-pink-500/60 hover:bg-slate-900/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-pink-500/20 flex flex-col p-3.5 overflow-hidden"
+                    @click="toggleSelection(item.character_id)"
+                    class="group relative bg-slate-900/40 backdrop-blur-md rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col p-3.5 overflow-hidden cursor-pointer"
+                    :class="[
+                        selectedCharacterIds.includes(item.character_id)
+                            ? 'border-pink-500/90 bg-pink-500/10 shadow-pink-500/20'
+                            : 'border-white/10 hover:border-pink-500/40 hover:bg-slate-900/60'
+                    ]"
                 >
+                    <!-- 勾选状态 Checkmark -->
+                    <div 
+                        v-if="selectedCharacterIds.includes(item.character_id)" 
+                        class="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-pink-500 text-white font-black text-xs flex items-center justify-center shadow-lg"
+                    >
+                        ✓
+                    </div>
+
+                    <!-- 排名 Badge -->
                     <div 
                         class="absolute top-5 left-5 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-lg backdrop-blur-md"
                         :class="{
@@ -123,10 +138,12 @@
                         NO.{{ index + 1 }}
                     </div>
 
+                    <!-- 角色画像 -->
                     <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-white/10 min-h-[160px] flex items-center justify-center">
                         <img :src="item.characters.avatar_url" :alt="item.characters.name" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" loading="lazy" />
                     </div>
 
+                    <!-- 文字与选择按钮 -->
                     <div class="mt-auto pt-3.5 flex flex-col text-center">
                         <div class="h-11 flex items-center justify-center px-1">
                             <h3 class="font-bold text-sm md:text-base text-slate-100 leading-snug line-clamp-2 drop-shadow">{{ item.characters.name }}</h3>
@@ -135,22 +152,51 @@
                             <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight leading-none drop-shadow">{{ item.votes }}</span>
                             <span class="text-xs text-slate-300/70 font-normal">票</span>
                         </div>
+
+                        <!-- 选择状态指示按钮 -->
                         <button 
-                            @click="handleVote(item.character_id)"
-                            :disabled="submitting || myVotedCharacterIds.includes(item.character_id) || usedVotes >= maxVotes"
+                            type="button"
+                            :disabled="myVotedCharacterIds.includes(item.character_id)"
                             class="w-full py-2.5 px-4 font-semibold rounded-xl transition shadow-lg text-sm"
                             :class="[
                                 myVotedCharacterIds.includes(item.character_id)
                                     ? 'bg-slate-800/80 text-slate-400 border border-white/5 cursor-not-allowed shadow-none'
-                                    : 'bg-gradient-to-r from-pink-500/90 to-purple-600/90 hover:from-pink-500 hover:to-purple-600 text-white shadow-pink-500/20 active:scale-95 backdrop-blur-sm'
+                                    : selectedCharacterIds.includes(item.character_id)
+                                        ? 'bg-pink-500 text-white shadow-pink-500/30'
+                                        : 'bg-slate-800/80 text-slate-200 border border-white/10 hover:bg-pink-500/20 hover:text-pink-300'
                             ]"
                         >
                             <span v-if="myVotedCharacterIds.includes(item.character_id)">已应援 ✓</span>
-                            <span v-else-if="usedVotes >= maxVotes">额度已用完</span>
-                            <span v-else>投Ta一票</span>
+                            <span v-else-if="selectedCharacterIds.includes(item.character_id)">已选择 ✓</span>
+                            <span v-else>选择Ta</span>
                         </button>
                     </div>
                 </div>
+            </div>
+
+
+            <!-- 2. 屏幕底部固定悬浮提交栏 (仅小组赛且尚有票数时显示) -->
+            <div 
+                v-if="activeMatch && activeMatch.match_type === 'group' && usedVotes < maxVotes"
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-slate-900/90 backdrop-blur-xl border border-pink-500/40 p-3.5 rounded-2xl shadow-2xl shadow-pink-500/10 flex items-center justify-between gap-4"
+            >
+                <div class="text-xs md:text-sm pl-2">
+                    <div class="text-slate-300 font-medium">本次拟投角色</div>
+                    <div class="text-pink-400 font-black text-base">
+                        已选 {{ selectedCharacterIds.length }} <span class="text-slate-400 text-xs font-normal">/ 还可以选 {{ maxVotes - usedVotes - selectedCharacterIds.length }} 个</span>
+                    </div>
+                </div>
+
+                <button 
+                    @click="submitGroupVotes"
+                    :disabled="submitting || selectedCharacterIds.length === 0"
+                    class="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 active:scale-95 disabled:opacity-40 disabled:scale-100 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/30 text-sm whitespace-nowrap flex items-center gap-1.5"
+                >
+                    <span v-if="submitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span v-if="submitting">提交中...</span>
+                    <span v-else-if="selectedCharacterIds.length === 0">请勾选角色</span>
+                    <span v-else>确认提交 ({{ selectedCharacterIds.length }}票)</span>
+                </button>
             </div>
 
             <!-- 1v1 PK 赛 -->
@@ -533,6 +579,64 @@
                 return { left, right: 100 - left };
             });
 
+            // 1. 声明待提交勾选的角色 ID 数组
+            const selectedCharacterIds = ref([]);
+
+            // 2. 本地勾选 / 取消勾选逻辑（纯前端交互，0 请求）
+            const toggleSelection = (characterId) => {
+                // 若该角色历史已投过，不可再选
+                if (myVotedCharacterIds.value.includes(characterId)) return;
+
+                const index = selectedCharacterIds.value.indexOf(characterId);
+                if (index > -1) {
+                    // 已选 -> 取消勾选
+                    selectedCharacterIds.value.splice(index, 1);
+                } else {
+                    // 未选 -> 检查剩余可投额度
+                    const remainingLimit = maxVotes.value - usedVotes.value;
+                    if (selectedCharacterIds.value.length < remainingLimit) {
+                        selectedCharacterIds.value.push(characterId);
+                    } else {
+                        alert(`小组赛每人最多投 ${maxVotes.value} 票，您当前最多还能勾选 ${remainingLimit} 个角色`);
+                    }
+                }
+            };
+
+            // 3. 统一发送投票请求（点击底部按钮时触发）
+            const submitGroupVotes = async () => {
+                if (selectedCharacterIds.value.length === 0 || !activeMatch.value || !visitorId.value) return;
+                submitting.value = true;
+
+                try {
+                    let successCount = 0;
+
+                    // 循环将本地勾选的角色批量提交给 RPC 接口
+                    for (const charId of selectedCharacterIds.value) {
+                        const { data, error } = await client.rpc('submit_vote', {
+                            p_match_id: activeMatch.value.id,
+                            p_character_id: charId,
+                            p_voter_identity: visitorId.value
+                        });
+
+                        if (error) throw error;
+                        if (data && data.success) {
+                            myVotedCharacterIds.value.push(charId);
+                            successCount++;
+                        }
+                    }
+
+                    if (successCount > 0) {
+                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                        alert(`🎉 成功投出 ${successCount} 张选票！`);
+                        selectedCharacterIds.value = []; // 清空待提交列表
+                    }
+                } catch (err) {
+                    alert('选票提交异常: ' + (err.message || '网络连接失败'));
+                } finally {
+                    submitting.value = false;
+                }
+            };
+
             onMounted(() => {
                 fetchActiveMatch();
             });
@@ -559,7 +663,10 @@
                 usedVotes,
                 switchTab,
                 onHistoryMatchChange,
-                handleVote
+                handleVote,
+                selectedCharacterIds,
+                toggleSelection,
+                submitGroupVotes
             };
         }
     }).mount('#app');
