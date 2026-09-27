@@ -183,7 +183,7 @@
                 <div class="text-xs md:text-sm pl-2">
                     <div class="text-slate-300 font-medium">本次拟投角色</div>
                     <div class="text-pink-400 font-black text-base">
-                        已选 {{ selectedCharacterIds.length }} <span class="text-slate-400 text-xs font-normal">/ 还可以选 {{ maxVotes - usedVotes - selectedCharacterIds.length }} 个</span>
+                        已选 {{ selectedCharacterIds.length }} <span class="text-slate-400 text-xs font-normal">/ 还可以选 {{ Math.max(0, maxVotes - usedVotes - selectedCharacterIds.length) }} 个</span>
                     </div>
                 </div>
 
