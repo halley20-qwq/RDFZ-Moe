@@ -609,9 +609,9 @@
 
                 try {
                     let successCount = 0;
+                    const targets = [...selectedCharacterIds.value];
 
-                    // 循环将本地勾选的角色批量提交给 RPC 接口
-                    for (const charId of selectedCharacterIds.value) {
+                    for (const charId of targets) {
                         const { data, error } = await client.rpc('submit_vote', {
                             p_match_id: activeMatch.value.id,
                             p_character_id: charId,
@@ -619,19 +619,28 @@
                         });
 
                         if (error) throw error;
-                        if (data && data.success) {
-                            myVotedCharacterIds.value.push(charId);
-                            successCount++;
+                        
+                        if (data) {
+                            if (data.success) {
+                                // 投票成功：更新已投列表，移除待提交勾选
+                                myVotedCharacterIds.value.push(charId);
+                                selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
+                                successCount++;
+                            } else {
+                                // 防刷/规则拦截：弹出后端返回的具体错误原因
+                                alert('⚠️ ' + data.message);
+                                // 同步取消该角色的本地勾选，释放选择状态
+                                selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
+                            }
                         }
                     }
 
                     if (successCount > 0) {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
                         alert(`🎉 成功投出 ${successCount} 张选票！`);
-                        selectedCharacterIds.value = []; // 清空待提交列表
                     }
                 } catch (err) {
-                    alert('选票提交异常: ' + (err.message || '网络连接失败'));
+                    alert('投票请求失败: ' + (err.message || '网络连接异常'));
                 } finally {
                     submitting.value = false;
                 }
