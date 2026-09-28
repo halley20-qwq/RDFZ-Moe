@@ -609,6 +609,7 @@
 
                 try {
                     let successCount = 0;
+                    const errorMessages = [];
                     const targets = [...selectedCharacterIds.value];
 
                     for (const charId of targets) {
@@ -618,29 +619,44 @@
                             p_voter_identity: visitorId.value
                         });
 
-                        if (error) throw error;
-                        
+                        if (error) {
+                            if (!errorMessages.includes(error.message)) {
+                                errorMessages.push(error.message || '网络连接异常');
+                            }
+                            continue;
+                        }
+
                         if (data) {
                             if (data.success) {
-                                // 投票成功：更新已投列表，移除待提交勾选
+                                // 成功：记录已投并移出待提交列表
                                 myVotedCharacterIds.value.push(charId);
                                 selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
                                 successCount++;
                             } else {
-                                // 防刷/规则拦截：弹出后端返回的具体错误原因
-                                alert('⚠️ ' + data.message);
-                                // 同步取消该角色的本地勾选，释放选择状态
+                                // 被拦截：收集错误原因（去重），移出待提交列表
+                                if (!errorMessages.includes(data.message)) {
+                                    errorMessages.push(data.message);
+                                }
                                 selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
                             }
                         }
                     }
 
+                    // 统一弹窗逻辑（只弹窗一次）
                     if (successCount > 0) {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
-                        alert(`🎉 成功投出 ${successCount} 张选票！`);
+                        
+                        if (errorMessages.length > 0) {
+                            alert(`🎉 成功投出 ${successCount} 张选票！\n⚠️ 部分角色未投出：${errorMessages.join('；')}`);
+                        } else {
+                            alert(`🎉 成功投出 ${successCount} 张选票！`);
+                        }
+                    } else if (errorMessages.length > 0) {
+                        alert(`⚠️ 投票未能成功：\n${errorMessages.join('\n')}`);
                     }
+
                 } catch (err) {
-                    alert('投票请求失败: ' + (err.message || '网络连接异常'));
+                    alert('投票请求异常: ' + (err.message || '网络连接异常'));
                 } finally {
                     submitting.value = false;
                 }
