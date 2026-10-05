@@ -235,21 +235,21 @@ sudo certbot --nginx -d vote.yourdomain.com
 
 * **添加新管理员账号**：
 ```bash
-npm run add_admin <用户名> <密码>
+npm run add-admin <用户名> <密码>
 
 ```
 
 
 * **删除指定管理员账号**（内置防误删最后一个账号的锁定保护）：
 ```bash
-npm run del_admin <用户名>
+npm run del-admin <用户名>
 
 ```
 
 
 * **格式化/重置数据库**（清空所有业务数据与账号，恢复默认 `admin` / `admin123`，并执行 `VACUUM` 压缩空间）：
 ```bash
-npm run reset_database
+npm run reset-database
 
 ```
 
