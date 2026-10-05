@@ -1,0 +1,22 @@
+{
+  "name": "rdfz-moe",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "seed": "node scripts/seed.js",
+    "reset-database": "node scripts/reset_database.js",
+    "add-admin": "node scripts/create_admin.js",
+    "del-admin": "node scripts/delete_admin.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1",
+    "jsonwebtoken": "^9.0.3",
+    "xlsx": "^0.18.5",
+    "multer": "^2.4.0"
+  }
+}
