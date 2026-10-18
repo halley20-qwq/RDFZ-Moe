@@ -52,7 +52,7 @@ const submitVoteTransaction = db.transaction((matchId, characterId, visitorId, c
   if (!match) throw new Error('未找到该场次');
   if (match.status !== 1) throw new Error('当前场次不在投票时间内');
 
-  const maxVotes = match.match_type === 'group' ? 4 : 1;
+  const maxVotes = match.match_type === 'group' ? 2 : 1;
   const { totalVoted } = db.prepare('SELECT COUNT(*) as totalVoted FROM vote_logs WHERE match_id = ? AND voter_identity = ?').get(matchId, visitorId);
   if (totalVoted >= maxVotes) throw new Error(`当前设备在此场次的 ${maxVotes} 张票已用完`);
 
@@ -71,21 +71,45 @@ const submitVoteTransaction = db.transaction((matchId, characterId, visitorId, c
   return db.prepare('SELECT votes FROM match_candidates WHERE match_id = ? AND character_id = ?').get(matchId, characterId).votes;
 });
 
+// 获取所有进行中的比赛及各自的选手列表
 app.get('/api/matches/active', (req, res) => {
   const { visitorId } = req.query;
-  const match = db.prepare('SELECT * FROM matches WHERE status = 1 ORDER BY created_at DESC LIMIT 1').get();
-  if (!match) return res.json({ match: null, candidates: [], myVotedCharacterIds: [] });
+  const activeMatches = db.prepare('SELECT * FROM matches WHERE status = 1 ORDER BY created_at DESC').all();
 
-  const candidates = db.prepare(`
-    SELECT mc.id, mc.match_id, mc.character_id, mc.votes, c.name as char_name, c.avatar_url as char_avatar
-    FROM match_candidates mc JOIN characters c ON mc.character_id = c.id WHERE mc.match_id = ?
-  `).all(match.id).map(i => ({ id: i.id, match_id: i.match_id, character_id: i.character_id, votes: i.votes, characters: { id: i.character_id, name: i.char_name, avatar_url: i.char_avatar } }));
+  const matchesData = activeMatches.map(match => {
+    const candidates = db.prepare(`
+      SELECT mc.id, mc.match_id, mc.character_id, mc.votes,
+             c.name as char_name, c.avatar_url as char_avatar
+      FROM match_candidates mc
+      JOIN characters c ON mc.character_id = c.id
+      WHERE mc.match_id = ?
+    `).all(match.id).map(item => ({
+      id: item.id,
+      match_id: item.match_id,
+      character_id: item.character_id,
+      votes: item.votes,
+      characters: {
+        id: item.character_id,
+        name: item.char_name,
+        avatar_url: item.char_avatar
+      }
+    }));
 
-  let myVotedCharacterIds = [];
-  if (visitorId) {
-    myVotedCharacterIds = db.prepare('SELECT character_id FROM vote_logs WHERE match_id = ? AND voter_identity = ?').all(match.id, visitorId).map(v => v.character_id);
-  }
-  res.json({ match, candidates, myVotedCharacterIds });
+    let myVotedCharacterIds = [];
+    if (visitorId) {
+      myVotedCharacterIds = db.prepare(
+        'SELECT character_id FROM vote_logs WHERE match_id = ? AND voter_identity = ?'
+      ).all(match.id, visitorId).map(v => v.character_id);
+    }
+
+    return {
+      ...match,
+      candidates,
+      myVotedCharacterIds
+    };
+  });
+
+  res.json({ matches: matchesData });
 });
 
 app.get('/api/matches/history', (req, res) => {
@@ -199,20 +223,43 @@ app.post('/api/admin/matches', authMiddleware, (req, res) => {
 // 7. 修改赛程状态 (0:未开始, 1:进行中, 2:已结束)
 app.patch('/api/admin/matches/:id/status', authMiddleware, (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; // 0, 1, 2
-
+  const { status } = req.body;
   if (![0, 1, 2].includes(status)) return res.json({ success: false, message: '无效的状态码' });
 
-  // 如果将某场设置为 1(进行中)，可选将其他进行中的调整为 2(已结束)，保证只有一场进行中
-  const updateStatusTx = db.transaction(() => {
-    if (status === 1) {
-      db.prepare('UPDATE matches SET status = 2 WHERE status = 1').run();
-    }
-    db.prepare('UPDATE matches SET status = ? WHERE id = ?').run(status, id);
-  });
-
-  updateStatusTx();
+  // 允许同时存在多场进行中的比赛，直接更新目标赛程
+  db.prepare('UPDATE matches SET status = ? WHERE id = ?').run(status, id);
+  io.emit('match_status_changed', { matchId: id, status });
   res.json({ success: true, message: '赛程状态修改成功！' });
+});
+
+// ⚙️ 安全版：修改赛程定时开始/结束时间 API
+app.patch('/api/admin/matches/:id/schedule', authMiddleware, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { start_at, end_at } = req.body;
+
+    // 安全转换日期函数：若时间无效或为空则返回 null，避免抛出 RangeError 导致 500
+    const safeToIso = (val) => {
+      if (!val) return null;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    };
+
+    const formattedStartAt = safeToIso(start_at);
+    const formattedEndAt = safeToIso(end_at);
+
+    const result = db.prepare('UPDATE matches SET start_at = ?, end_at = ? WHERE id = ?')
+      .run(formattedStartAt, formattedEndAt, id);
+
+    if (result.changes === 0) {
+      return res.json({ success: false, message: '未找到指定 ID 的赛程' });
+    }
+
+    res.json({ success: true, message: '定时任务时间已成功更新！' });
+  } catch (err) {
+    console.error('更新定时失败:', err);
+    res.json({ success: false, message: '服务器处理失败: ' + err.message });
+  }
 });
 
 // 8. 查看投票日志 (带简单搜索/分页)
@@ -506,18 +553,10 @@ function checkScheduledMatches() {
     ORDER BY start_at ASC
   `).all(nowIso);
 
+  // 扫描到达开始时间的赛程，直接设为进行中，不影响其他正在进行的赛程
   for (const match of matchesToStart) {
-    const startTx = db.transaction(() => {
-      // 自动归档其他“进行中”的赛程，确保同时只有一场在进行
-      db.prepare('UPDATE matches SET status = 2 WHERE status = 1').run();
-      // 将本场设定为进行中
-      db.prepare('UPDATE matches SET status = 1 WHERE id = ?').run(match.id);
-    });
-
-    startTx();
-    console.log(`⏰ [定时任务] 赛程 "${match.title}" (ID: ${match.id}) 到达开始时间，已自动设为【进行中】`);
-
-    // WebSocket 广播：通知前台重新拉取当前赛程
+    db.prepare('UPDATE matches SET status = 1 WHERE id = ?').run(match.id);
+    console.log(`⏰ [定时任务] 赛程 "${match.title}" 已自动设为【进行中】`);
     io.emit('match_status_changed', { matchId: match.id, status: 1 });
   }
 
