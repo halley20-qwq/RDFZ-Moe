@@ -86,7 +86,7 @@
     <!-- ==================== TAB 1: 进行中赛事 ==================== -->
     <template v-else-if="activeTab === 'active'">
         <!-- 无进行中比赛 -->
-        <div v-if="!activeMatch" class="text-center py-20 bg-slate-900/40 backdrop-blur-md rounded-3xl border border-white/10 max-w-lg mx-auto shadow-2xl">
+        <div v-if="activeMatches.length === 0" class="text-center py-20 bg-slate-900/40 backdrop-blur-md rounded-3xl border border-white/10 max-w-lg mx-auto shadow-2xl">
             <div class="text-5xl mb-4">☕</div>
             <h3 class="text-xl font-bold text-slate-100">当前暂无进行中的赛程</h3>
             <p class="text-slate-300/70 text-sm mt-2 mb-6">下一轮对决正在筹备中，可切换至上方“往期归档”查看历史赛况</p>
@@ -95,178 +95,173 @@
             </button>
         </div>
 
-        <!-- 有进行中比赛 -->
-        <main v-else>
-            <!-- 比赛标题提示 -->
-            <div class="mb-6 p-4 rounded-2xl bg-slate-900/40 backdrop-blur-md border border-white/10 flex flex-col md:flex-row items-center justify-between gap-2 shadow-lg">
-                <div class="font-bold text-slate-100 text-base md:text-lg flex items-center gap-2">
-                    <span class="px-2.5 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 text-xs font-black border border-pink-500/30">
-                        {{ activeMatch.match_type === 'group' ? '小组赛' : '1v1 淘汰赛' }}
-                    </span>
-                    {{ activeMatch.title }}
+        <!-- 有进行中比赛：纵向堆叠多场比赛卡片 -->
+        <main v-else class="space-y-12 pb-16">
+            <section 
+                v-for="match in activeMatches" 
+                :key="match.id" 
+                class="p-4 md:p-6 rounded-3xl bg-slate-900/30 backdrop-blur-md border border-white/10 shadow-2xl"
+            >
+                <!-- 比赛标题提示栏 -->
+                <div class="mb-6 p-4 rounded-2xl bg-slate-900/50 backdrop-blur-md border border-white/10 flex flex-col md:flex-row items-center justify-between gap-2 shadow-lg">
+                    <div class="font-bold text-slate-100 text-base md:text-lg flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 text-xs font-black border border-pink-500/30">
+                            {{ match.match_type === 'group' ? '小组赛' : '1v1 淘汰赛' }}
+                        </span>
+                        {{ match.title }}
+                    </div>
+                    <div v-if="match.match_type === 'group'" class="text-xs text-slate-300/80">
+                        本设备进度：<span class="text-pink-400 font-bold text-sm">{{ match.myVotedCharacterIds.length }}</span> / {{ getMatchMaxVotes(match) }} 票
+                    </div>
                 </div>
-                <div v-if="activeMatch.match_type === 'group'" class="text-xs text-slate-300/80">
-                    本设备进度：<span class="text-pink-400 font-bold text-sm">{{ usedVotes }}</span> / {{ maxVotes }} 票
-                </div>
-            </div>
 
-            <!-- 1. 小组赛网格布局 (纯本地勾选状态) -->
-            <div v-if="activeMatch.match_type === 'group'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-24">
-                <div 
-                    v-for="(item, index) in sortedCandidates" 
-                    :key="item.character_id"
-                    @click="toggleSelection(item.character_id)"
-                    class="group relative bg-slate-900/40 backdrop-blur-md rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col p-3.5 overflow-hidden cursor-pointer"
-                    :class="[
-                        selectedCharacterIds.includes(item.character_id)
-                            ? 'border-pink-500/90 bg-pink-500/10 shadow-pink-500/20'
-                            : 'border-white/10 hover:border-pink-500/40 hover:bg-slate-900/60'
-                    ]"
-                >
-                    <!-- 勾选状态 Checkmark -->
-                    <div 
-                        v-if="selectedCharacterIds.includes(item.character_id)" 
-                        class="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-pink-500 text-white font-black text-xs flex items-center justify-center shadow-lg"
-                    >
-                        ✓
-                    </div>
-
-                    <!-- 排名 Badge -->
-                    <div 
-                        class="absolute top-5 left-5 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-lg backdrop-blur-md"
-                        :class="{
-                            'bg-yellow-400/90 text-slate-950': index === 0,
-                            'bg-slate-200/90 text-slate-950': index === 1,
-                            'bg-amber-600/90 text-white': index === 2,
-                            'bg-slate-900/80 text-slate-300 border border-white/10': index > 2
-                        }"
-                    >
-                        NO.{{ index + 1 }}
-                    </div>
-
-                    <!-- 角色画像 -->
-                    <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-white/10 min-h-[160px] flex items-center justify-center">
-                        <img :src="item.characters.avatar_url" :alt="item.characters.name" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" loading="lazy" />
-                    </div>
-
-                    <!-- 文字与选择按钮 -->
-                    <div class="mt-auto pt-3.5 flex flex-col text-center">
-                        <div class="h-11 flex items-center justify-center px-1">
-                            <h3 class="font-bold text-sm md:text-base text-slate-100 leading-snug line-clamp-2 drop-shadow">{{ item.characters.name }}</h3>
-                        </div>
-                        <div class="h-9 flex items-baseline justify-center gap-0.5 my-1">
-                            <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight leading-none drop-shadow">{{ item.votes }}</span>
-                            <span class="text-xs text-slate-300/70 font-normal">票</span>
-                        </div>
-
-                        <!-- 选择状态指示按钮 -->
-                        <button 
-                            type="button"
-                            :disabled="myVotedCharacterIds.includes(item.character_id)"
-                            class="w-full py-2.5 px-4 font-semibold rounded-xl transition shadow-lg text-sm"
+                <!-- 1. 小组赛网格 -->
+                <div v-if="match.match_type === 'group'">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+                        <div 
+                            v-for="(item, index) in getSortedCandidates(match.candidates)" 
+                            :key="item.character_id"
+                            @click="toggleSelection(match.id, item.character_id)"
+                            class="group relative bg-slate-900/40 backdrop-blur-md rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col p-3.5 overflow-hidden cursor-pointer"
                             :class="[
-                                myVotedCharacterIds.includes(item.character_id)
-                                    ? 'bg-slate-800/80 text-slate-400 border border-white/5 cursor-not-allowed shadow-none'
-                                    : selectedCharacterIds.includes(item.character_id)
-                                        ? 'bg-pink-500 text-white shadow-pink-500/30'
-                                        : 'bg-slate-800/80 text-slate-200 border border-white/10 hover:bg-pink-500/20 hover:text-pink-300'
+                                (selectedMap[match.id] || []).includes(item.character_id)
+                                    ? 'border-pink-500/90 bg-pink-500/10 shadow-pink-500/20'
+                                    : 'border-white/10 hover:border-pink-500/40 hover:bg-slate-900/60'
                             ]"
                         >
-                            <span v-if="myVotedCharacterIds.includes(item.character_id)">已应援 ✓</span>
-                            <span v-else-if="selectedCharacterIds.includes(item.character_id)">已选择 ✓</span>
-                            <span v-else>选择Ta</span>
+                            <div 
+                                v-if="(selectedMap[match.id] || []).includes(item.character_id)" 
+                                class="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-pink-500 text-white font-black text-xs flex items-center justify-center shadow-lg"
+                            >✓</div>
+
+                            <div class="absolute top-5 left-5 z-10 px-2 py-0.5 rounded-md text-xs font-black shadow-lg backdrop-blur-md"
+                                :class="{
+                                    'bg-yellow-400/90 text-slate-950': index === 0,
+                                    'bg-slate-200/90 text-slate-950': index === 1,
+                                    'bg-amber-600/90 text-white': index === 2,
+                                    'bg-slate-900/80 text-slate-300 border border-white/10': index > 2
+                                }">
+                                NO.{{ index + 1 }}
+                            </div>
+
+                            <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-white/10 min-h-[160px] flex items-center justify-center">
+                                <img :src="item.characters.avatar_url" :alt="item.characters.name" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" loading="lazy" />
+                            </div>
+
+                            <div class="mt-auto pt-3.5 flex flex-col text-center">
+                                <div class="h-11 flex items-center justify-center px-1">
+                                    <h3 class="font-bold text-sm md:text-base text-slate-100 leading-snug line-clamp-2 drop-shadow">{{ item.characters.name }}</h3>
+                                </div>
+                                <div class="h-9 flex items-baseline justify-center gap-0.5 my-1">
+                                    <span class="text-2xl md:text-3xl font-black text-pink-400 tracking-tight leading-none drop-shadow">{{ item.votes }}</span>
+                                    <span class="text-xs text-slate-300/70 font-normal">票</span>
+                                </div>
+
+                                <button 
+                                    type="button"
+                                    :disabled="match.myVotedCharacterIds.includes(item.character_id)"
+                                    class="w-full py-2.5 px-4 font-semibold rounded-xl transition shadow-lg text-sm"
+                                    :class="[
+                                        match.myVotedCharacterIds.includes(item.character_id)
+                                            ? 'bg-slate-800/80 text-slate-400 border border-white/5 cursor-not-allowed shadow-none'
+                                            : (selectedMap[match.id] || []).includes(item.character_id)
+                                                ? 'bg-pink-500 text-white shadow-pink-500/30'
+                                                : 'bg-slate-800/80 text-slate-200 border border-white/10 hover:bg-pink-500/20 hover:text-pink-300'
+                                    ]"
+                                >
+                                    <span v-if="match.myVotedCharacterIds.includes(item.character_id)">已应援 ✓</span>
+                                    <span v-else-if="(selectedMap[match.id] || []).includes(item.character_id)">已选择 ✓</span>
+                                    <span v-else>选择Ta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 小组赛卡片底部的独立提交栏 -->
+                    <div 
+                        v-if="match.myVotedCharacterIds.length < getMatchMaxVotes(match)" 
+                        class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-slate-950/70 border border-pink-500/30"
+                    >
+                        <div class="text-xs md:text-sm pl-1">
+                            <span class="text-slate-300">本场拟投：已选 </span>
+                            <span class="text-pink-400 font-bold text-base">{{ (selectedMap[match.id] || []).length }}</span>
+                            <span class="text-slate-400 text-xs ml-1">/ 还可选 {{ Math.max(0, getMatchMaxVotes(match) - match.myVotedCharacterIds.length - (selectedMap[match.id] || []).length) }} 个</span>
+                        </div>
+                        <button 
+                            @click="submitGroupVotes(match.id)"
+                            :disabled="submitting || (selectedMap[match.id] || []).length === 0"
+                            class="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-40 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/20 text-sm whitespace-nowrap"
+                        >
+                            确认提交本场选票 ({{ (selectedMap[match.id] || []).length }}票)
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- 2. 屏幕底部固定悬浮提交栏 (仅小组赛且尚有票数时显示) -->
-            <div 
-                v-if="activeMatch && activeMatch.match_type === 'group' && usedVotes < maxVotes"
-                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-slate-900/90 backdrop-blur-xl border border-pink-500/40 p-3.5 rounded-2xl shadow-2xl shadow-pink-500/10 flex items-center justify-between gap-4"
-            >
-                <div class="text-xs md:text-sm pl-2">
-                    <div class="text-slate-300 font-medium">本次拟投角色</div>
-                    <div class="text-pink-400 font-black text-base">
-                        已选 {{ selectedCharacterIds.length }} <span class="text-slate-400 text-xs font-normal">/ 还可以选 {{ Math.max(0, maxVotes - usedVotes - selectedCharacterIds.length) }} 个</span>
-                    </div>
-                </div>
-
-                <button 
-                    @click="submitGroupVotes"
-                    :disabled="submitting || selectedCharacterIds.length === 0"
-                    class="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 active:scale-95 disabled:opacity-40 disabled:scale-100 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/30 text-sm whitespace-nowrap flex items-center gap-1.5"
-                >
-                    <span v-if="submitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span v-if="submitting">提交中...</span>
-                    <span v-else-if="selectedCharacterIds.length === 0">请勾选角色</span>
-                    <span v-else>确认提交 ({{ selectedCharacterIds.length }}票)</span>
-                </button>
-            </div>
-
-            <!-- 1v1 PK 赛 -->
-            <div v-else-if="activeMatch.match_type === 'pk' && candidates.length >= 2" class="max-w-3xl mx-auto">
-                <div class="grid grid-cols-2 gap-4 md:gap-8 items-stretch">
-                    <!-- 左选手 -->
-                    <div class="group bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 md:p-5 border-2 border-pink-500/40 hover:border-pink-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-2xl shadow-pink-500/10">
-                        <div class="absolute top-6 left-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-pink-500/90 text-white shadow-md">LEFT</div>
-                        <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-pink-500/30 min-h-[160px] flex items-center justify-center">
-                            <img :src="candidates[0].characters.avatar_url" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" />
+                <!-- 2. 1v1 PK 赛 -->
+                <div v-else-if="match.match_type === 'pk' && match.candidates.length >= 2" class="max-w-3xl mx-auto">
+                    <div class="grid grid-cols-2 gap-4 md:gap-8 items-stretch">
+                        <!-- 左选手 -->
+                        <div class="group bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 md:p-5 border-2 border-pink-500/40 hover:border-pink-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-2xl shadow-pink-500/10">
+                            <div class="absolute top-6 left-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-pink-500/90 text-white shadow-md">LEFT</div>
+                            <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-pink-500/30 min-h-[160px] flex items-center justify-center">
+                                <img :src="match.candidates[0].characters.avatar_url" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" />
+                            </div>
+                            <div class="mt-auto pt-3.5 flex flex-col text-center">
+                                <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ match.candidates[0].characters.name }}</h3></div>
+                                <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-pink-400 leading-none drop-shadow">{{ match.candidates[0].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
+                                <button @click="handleVote(match.id, match.candidates[0].character_id)" :disabled="submitting || match.myVotedCharacterIds.includes(match.candidates[0].character_id)" class="w-full py-3 bg-gradient-to-r from-pink-500/90 to-rose-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/25 text-sm md:text-base disabled:opacity-50">
+                                    {{ match.myVotedCharacterIds.includes(match.candidates[0].character_id) ? '已应援 ✓' : '为Ta应援' }}
+                                </button>
+                            </div>
                         </div>
-                        <div class="mt-auto pt-3.5 flex flex-col text-center">
-                            <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ candidates[0].characters.name }}</h3></div>
-                            <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-pink-400 leading-none drop-shadow">{{ candidates[0].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
-                            <button @click="handleVote(candidates[0].character_id)" :disabled="submitting || myVotedCharacterIds.includes(candidates[0].character_id)" class="w-full py-3 bg-gradient-to-r from-pink-500/90 to-rose-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-pink-500/25 text-sm md:text-base disabled:opacity-50">
-                                {{ myVotedCharacterIds.includes(candidates[0].character_id) ? '已应援 ✓' : '为Ta应援' }}
-                            </button>
-                        </div>
-                    </div>
-                    <!-- 右选手 -->
-                    <div class="group bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 md:p-5 border-2 border-indigo-500/40 hover:border-indigo-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-2xl shadow-indigo-500/10">
-                        <div class="absolute top-6 right-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-indigo-500/90 text-white shadow-md">RIGHT</div>
-                        <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-indigo-500/30 min-h-[160px] flex items-center justify-center">
-                            <img :src="candidates[1].characters.avatar_url" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" />
-                        </div>
-                        <div class="mt-auto pt-3.5 flex flex-col text-center">
-                            <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ candidates[1].characters.name }}</h3></div>
-                            <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-indigo-400 leading-none drop-shadow">{{ candidates[1].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
-                            <button @click="handleVote(candidates[1].character_id)" :disabled="submitting || myVotedCharacterIds.includes(candidates[1].character_id)" class="w-full py-3 bg-gradient-to-r from-indigo-500/90 to-purple-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/25 text-sm md:text-base disabled:opacity-50">
-                                {{ myVotedCharacterIds.includes(candidates[1].character_id) ? '已应援 ✓' : '为Ta应援' }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <!-- 1v1 PK 实时百分比拔河进度条 -->
-                <div class="mt-8 md:mt-10 max-w-4xl mx-auto bg-slate-900/40 backdrop-blur-md p-5 md:p-6 rounded-2xl border border-white/10 shadow-2xl">
-                    <div class="flex items-center justify-between text-xs md:text-sm font-bold mb-3 px-1">
-                        <div class="text-pink-400 flex items-center gap-1.5 truncate max-w-[35%]">
-                            <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse shrink-0"></span>
-                            <span class="truncate">{{ candidates[0].characters.name }}</span>
-                            <span class="text-pink-300 font-black ml-1 text-sm md:text-base">{{ pkPercentages.left }}%</span>
-                        </div>
-                        <div class="text-indigo-400 flex items-center justify-end gap-1.5 truncate max-w-[35%]">
-                            <span class="text-indigo-300 font-black mr-1 text-sm md:text-base">{{ pkPercentages.right }}%</span>
-                            <span class="truncate">{{ candidates[1].characters.name }}</span>
-                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                        <!-- 右选手 -->
+                        <div class="group bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 md:p-5 border-2 border-indigo-500/40 hover:border-indigo-500 transition-all duration-300 flex flex-col relative overflow-hidden shadow-2xl shadow-indigo-500/10">
+                            <div class="absolute top-6 right-6 z-10 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-black bg-indigo-500/90 text-white shadow-md">RIGHT</div>
+                            <div class="relative w-full overflow-hidden bg-slate-950/60 rounded-xl border border-indigo-500/30 min-h-[160px] flex items-center justify-center">
+                                <img :src="match.candidates[1].characters.avatar_url" class="w-full h-auto block group-hover:scale-105 transition-transform duration-500 object-contain" />
+                            </div>
+                            <div class="mt-auto pt-3.5 flex flex-col text-center">
+                                <div class="h-11 flex items-center justify-center px-1"><h3 class="font-bold text-base md:text-xl text-slate-100 line-clamp-2 drop-shadow">{{ match.candidates[1].characters.name }}</h3></div>
+                                <div class="h-10 flex items-baseline justify-center gap-0.5 my-1"><span class="text-3xl md:text-4xl font-black text-indigo-400 leading-none drop-shadow">{{ match.candidates[1].votes }}</span><span class="text-xs text-slate-300/70">票</span></div>
+                                <button @click="handleVote(match.id, match.candidates[1].character_id)" :disabled="submitting || match.myVotedCharacterIds.includes(match.candidates[1].character_id)" class="w-full py-3 bg-gradient-to-r from-indigo-500/90 to-purple-600/90 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/25 text-sm md:text-base disabled:opacity-50">
+                                    {{ match.myVotedCharacterIds.includes(match.candidates[1].character_id) ? '已应援 ✓' : '为Ta应援' }}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="h-6 w-full bg-slate-950/80 rounded-full overflow-hidden flex p-1 border border-white/10 shadow-inner">
-                        <div 
-                            class="h-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-400 rounded-full transition-all duration-500 ease-out shadow-md shadow-pink-500/30 flex items-center justify-end pr-2" 
-                            :style="{ width: pkPercentages.left + '%' }"
-                        >
-                            <span v-if="pkPercentages.left >= 12" class="text-[10px] font-black text-white drop-shadow">{{ pkPercentages.left }}%</span>
+                    <!-- 拔河进度条 -->
+                    <div class="mt-8 md:mt-10 max-w-4xl mx-auto bg-slate-900/40 backdrop-blur-md p-5 md:p-6 rounded-2xl border border-white/10 shadow-2xl">
+                        <div class="flex items-center justify-between text-xs md:text-sm font-bold mb-3 px-1">
+                            <div class="text-pink-400 flex items-center gap-1.5 truncate max-w-[35%]">
+                                <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse shrink-0"></span>
+                                <span class="truncate">{{ match.candidates[0].characters.name }}</span>
+                                <span class="text-pink-300 font-black ml-1 text-sm md:text-base">{{ getPkPercentages(match).left }}%</span>
+                            </div>
+                            <div class="text-indigo-400 flex items-center justify-end gap-1.5 truncate max-w-[35%]">
+                                <span class="text-indigo-300 font-black mr-1 text-sm md:text-base">{{ getPkPercentages(match).right }}%</span>
+                                <span class="truncate">{{ match.candidates[1].characters.name }}</span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                            </div>
                         </div>
-                        <div 
-                            class="h-full bg-gradient-to-r from-indigo-400 via-indigo-500 to-purple-600 rounded-full transition-all duration-500 ease-out shadow-md shadow-indigo-500/30 flex items-center justify-start pl-2" 
-                            :style="{ width: pkPercentages.right + '%' }"
-                        >
-                            <span v-if="pkPercentages.right >= 12" class="text-[10px] font-black text-white drop-shadow">{{ pkPercentages.right }}%</span>
+
+                        <div class="h-6 w-full bg-slate-950/80 rounded-full overflow-hidden flex p-1 border border-white/10 shadow-inner">
+                            <div 
+                                class="h-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-400 rounded-full transition-all duration-500 ease-out shadow-md shadow-pink-500/30 flex items-center justify-end pr-2" 
+                                :style="{ width: getPkPercentages(match).left + '%' }"
+                            >
+                                <span v-if="getPkPercentages(match).left >= 12" class="text-[10px] font-black text-white drop-shadow">{{ getPkPercentages(match).left }}%</span>
+                            </div>
+                            <div 
+                                class="h-full bg-gradient-to-r from-indigo-400 via-indigo-500 to-purple-600 rounded-full transition-all duration-500 ease-out shadow-md shadow-indigo-500/30 flex items-center justify-start pl-2" 
+                                :style="{ width: getPkPercentages(match).right + '%' }"
+                            >
+                                <span v-if="getPkPercentages(match).right >= 12" class="text-[10px] font-black text-white drop-shadow">{{ getPkPercentages(match).right }}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </main>
     </template>
 
@@ -375,18 +370,17 @@
             // Tab 状态: 'active' | 'history'
             const activeTab = ref('active');
 
-            // 进行中比赛的数据
-            const activeMatch = ref(null);
-            const candidates = ref([]);
-            const myVotedCharacterIds = ref([]);
+            // 🌟 1. 进行中的多场比赛数据与各场次本地多选 Map
+            const activeMatches = ref([]);
+            const selectedMap = ref({}); // 结构: { [matchId]: [charId1, charId2, ...] }
 
-            // 历史比赛的数据
+            // 2. 历史比赛的数据
             const finishedMatches = ref([]);
             const selectedHistoryMatchId = ref(null);
             const historyCandidates = ref([]);
             const historyMyVotedIds = ref([]);
 
-            // 1. 指纹生成
+            // 3. 硬件指纹提取与降级生成
             const initFingerprint = async () => {
                 try {
                     const fp = await FingerprintJS.load();
@@ -402,27 +396,15 @@
                 }
             };
 
-            // 🌟 🌟 补全：获取进行中的比赛及候选人列表 🌟 🌟
+            // 🌟 4. 拉取所有正在进行中的比赛
             const fetchActiveMatch = async () => {
                 loading.value = true;
                 try {
                     await initFingerprint();
-
                     const res = await fetch(`${API_BASE_URL}/api/matches/active?visitorId=${visitorId.value}`);
                     const data = await res.json();
-
-                    if (!data.match) {
-                        activeMatch.value = null;
-                        candidates.value = [];
-                        return;
-                    }
-
-                    activeMatch.value = data.match;
-                    candidates.value = data.candidates || [];
-                    myVotedCharacterIds.value = data.myVotedCharacterIds || [];
-
-                    setupRealtimeSubscription(data.match.id);
-
+                    activeMatches.value = data.matches || [];
+                    setupRealtimeSubscription();
                 } catch (err) {
                     console.error('加载进行中赛事失败:', err);
                 } finally {
@@ -430,7 +412,7 @@
                 }
             };
 
-            // 获取已结束赛事列表
+            // 5. 获取往期归档赛事列表
             const fetchFinishedMatches = async () => {
                 loading.value = true;
                 try {
@@ -450,7 +432,7 @@
                 }
             };
 
-            // 获取某场历史比赛的详情
+            // 6. 获取特定归档赛事的详细得票与已投选手
             const loadHistoryMatchDetails = async (matchId) => {
                 if (!matchId) return;
                 try {
@@ -464,48 +446,88 @@
                 }
             };
 
-            // 切换 Tab 触发
+            // 7. 切换 Tab 触发
             const switchTab = async (tab) => {
                 activeTab.value = tab;
                 if (tab === 'history' && finishedMatches.value.length === 0) {
                     await fetchFinishedMatches();
-                } else if (tab === 'active' && !activeMatch.value) {
+                } else if (tab === 'active' && activeMatches.value.length === 0) {
                     await fetchActiveMatch();
                 }
             };
 
-            // 下拉框切换历史比赛触发
+            // 8. 下拉框切换历史比赛触发
             const onHistoryMatchChange = () => {
                 loadHistoryMatchDetails(selectedHistoryMatchId.value);
             };
 
-            // Socket.IO 实时事件订阅
-            const setupRealtimeSubscription = (matchId) => {
-                socket.off('vote_update'); // 移除旧监听，防止重复触发
+            // 🌟 9. 计算与视图辅助函数
+            const getSortedCandidates = (cands) => [...(cands || [])].sort((a, b) => b.votes - a.votes);
+            const getMatchMaxVotes = (match) => match.match_type === 'group' ? 2 : 1;
+            const getPkPercentages = (match) => {
+                if (!match.candidates || match.candidates.length < 2) return { left: 50, right: 50 };
+                const v1 = match.candidates[0].votes || 0;
+                const v2 = match.candidates[1].votes || 0;
+                const total = v1 + v2;
+                if (total === 0) return { left: 50, right: 50 };
+                const left = Math.round((v1 / total) * 100);
+                return { left, right: 100 - left };
+            };
+
+            // 10. 历史归档计算属性
+            const selectedHistoryMatch = computed(() => finishedMatches.value.find(m => m.id === selectedHistoryMatchId.value));
+            const sortedHistoryCandidates = computed(() => [...historyCandidates.value].sort((a, b) => b.votes - a.votes));
+
+            // 🌟 11. Socket.IO 实时事件监听（支持多场次精准更新）
+            const setupRealtimeSubscription = () => {
+                socket.off('vote_update');
                 socket.on('vote_update', (data) => {
-                    // 确保跳票事件属于当前正在展示的比赛
-                    if (data.matchId === matchId) {
-                        const item = candidates.value.find(c => c.character_id === data.characterId);
+                    const targetMatch = activeMatches.value.find(m => m.id === data.matchId);
+                    if (targetMatch) {
+                        const item = targetMatch.candidates.find(c => c.character_id === data.characterId);
                         if (item) {
                             item.votes = data.newVotes;
                         }
                     }
                 });
+                socket.off('match_status_changed');
                 socket.on('match_status_changed', () => {
                     fetchActiveMatch();
                 });
             };
 
-            // 提交投票
-            const handleVote = async (characterId) => {
-                if (!activeMatch.value || !visitorId.value) return;
+            // 🌟 12. 小组赛本地选择/取消选择逻辑（按 matchId 隔离存储）
+            const toggleSelection = (matchId, characterId) => {
+                const targetMatch = activeMatches.value.find(m => m.id === matchId);
+                if (!targetMatch || targetMatch.myVotedCharacterIds.includes(characterId)) return;
+
+                if (!selectedMap.value[matchId]) selectedMap.value[matchId] = [];
+                const list = selectedMap.value[matchId];
+                const index = list.indexOf(characterId);
+                if (index > -1) {
+                    list.splice(index, 1);
+                } else {
+                    const maxV = getMatchMaxVotes(targetMatch);
+                    const remaining = maxV - targetMatch.myVotedCharacterIds.length;
+                    if (list.length < remaining) {
+                        list.push(characterId);
+                    } else {
+                        alert(`本场比赛每人最多可投 ${maxV} 票，您当前最多还能勾选 ${remaining} 个角色`);
+                    }
+                }
+            };
+
+            // 🌟 13. 1v1 PK 赛单次投票应援
+            const handleVote = async (matchId, characterId) => {
+                const targetMatch = activeMatches.value.find(m => m.id === matchId);
+                if (!targetMatch || !visitorId.value) return;
                 submitting.value = true;
                 try {
                     const res = await fetch(`${API_BASE_URL}/api/vote`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            matchId: activeMatch.value.id,
+                            matchId: matchId,
                             characterId: characterId,
                             visitorId: visitorId.value
                         })
@@ -514,7 +536,7 @@
                     const data = await res.json();
 
                     if (data.success) {
-                        myVotedCharacterIds.value.push(characterId);
+                        targetMatch.myVotedCharacterIds.push(characterId);
                         confetti({ particleCount: 80, spread: 60, origin: { y: 0.8 } });
                         alert('🎉 ' + data.message);
                     } else {
@@ -527,59 +549,23 @@
                 }
             };
 
-            const maxVotes = computed(() => activeMatch.value?.match_type === 'group' ? 4 : 1);
-            const usedVotes = computed(() => myVotedCharacterIds.value.length);
-            const sortedCandidates = computed(() => [...candidates.value].sort((a, b) => b.votes - a.votes));
-            
-            const selectedHistoryMatch = computed(() => finishedMatches.value.find(m => m.id === selectedHistoryMatchId.value));
-            const sortedHistoryCandidates = computed(() => [...historyCandidates.value].sort((a, b) => b.votes - a.votes));
-
-            const pkPercentages = computed(() => {
-                if (candidates.value.length < 2) return { left: 50, right: 50 };
-                const v1 = candidates.value[0].votes || 0;
-                const v2 = candidates.value[1].votes || 0;
-                const total = v1 + v2;
-                if (total === 0) return { left: 50, right: 50 };
-                const left = Math.round((v1 / total) * 100);
-                return { left, right: 100 - left };
-            });
-
-            // 1. 声明待提交勾选的角色 ID 数组
-            const selectedCharacterIds = ref([]);
-
-            // 2. 本地勾选 / 取消勾选逻辑
-            const toggleSelection = (characterId) => {
-                if (myVotedCharacterIds.value.includes(characterId)) return;
-
-                const index = selectedCharacterIds.value.indexOf(characterId);
-                if (index > -1) {
-                    selectedCharacterIds.value.splice(index, 1);
-                } else {
-                    const remainingLimit = maxVotes.value - usedVotes.value;
-                    if (selectedCharacterIds.value.length < remainingLimit) {
-                        selectedCharacterIds.value.push(characterId);
-                    } else {
-                        alert(`小组赛每人最多投 ${maxVotes.value} 票，您当前最多还能勾选 ${remainingLimit} 个角色`);
-                    }
-                }
-            };
-
-            // 3. 统一发送投票请求
-            const submitGroupVotes = async () => {
-                if (selectedCharacterIds.value.length === 0 || !activeMatch.value || !visitorId.value) return;
+            // 🌟 14. 小组赛统一提交本场选票
+            const submitGroupVotes = async (matchId) => {
+                const targetMatch = activeMatches.value.find(m => m.id === matchId);
+                const targets = [...(selectedMap.value[matchId] || [])];
+                if (!targetMatch || targets.length === 0 || !visitorId.value) return;
                 submitting.value = true;
 
                 try {
                     let successCount = 0;
                     const errorMessages = [];
-                    const targets = [...selectedCharacterIds.value];
 
                     for (const charId of targets) {
                         const res = await fetch(`${API_BASE_URL}/api/vote`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                matchId: activeMatch.value.id,
+                                matchId: matchId,
                                 characterId: charId,
                                 visitorId: visitorId.value
                             })
@@ -588,14 +574,14 @@
                         const data = await res.json();
 
                         if (data.success) {
-                            myVotedCharacterIds.value.push(charId);
-                            selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
+                            targetMatch.myVotedCharacterIds.push(charId);
+                            selectedMap.value[matchId] = selectedMap.value[matchId].filter(id => id !== charId);
                             successCount++;
                         } else {
                             if (!errorMessages.includes(data.message)) {
                                 errorMessages.push(data.message);
                             }
-                            selectedCharacterIds.value = selectedCharacterIds.value.filter(id => id !== charId);
+                            selectedMap.value[matchId] = selectedMap.value[matchId].filter(id => id !== charId);
                         }
                     }
 
@@ -622,30 +608,28 @@
             });
 
             onUnmounted(() => {
-                socket.disconnect(); // 断开 socket 连接
+                socket.disconnect();
             });
 
             return {
                 loading,
                 submitting,
                 activeTab,
-                activeMatch,
-                candidates,
-                sortedCandidates,
+                visitorId,
+                activeMatches,
+                selectedMap,
                 finishedMatches,
                 selectedHistoryMatchId,
                 selectedHistoryMatch,
                 sortedHistoryCandidates,
                 historyMyVotedIds,
-                pkPercentages,
-                myVotedCharacterIds,
-                maxVotes,
-                usedVotes,
                 switchTab,
                 onHistoryMatchChange,
-                handleVote,
-                selectedCharacterIds,
+                getSortedCandidates,
+                getMatchMaxVotes,
+                getPkPercentages,
                 toggleSelection,
+                handleVote,
                 submitGroupVotes,
                 fetchActiveMatch
             };
