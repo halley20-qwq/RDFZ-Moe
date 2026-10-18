@@ -360,12 +360,21 @@
             const authFetch = async (url, options = {}) => {
                 options.headers = { ...options.headers, 'Authorization': `Bearer ${token.value}` };
                 const res = await fetch(url, options);
+                
                 if (res.status === 401 || res.status === 403) {
                     logout();
                     alert('身份过期，请重新登录');
                     throw new Error('Unauthorized');
                 }
-                return res.json();
+
+                // 先读文本，再尝试解析 JSON
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('后端返回了非 JSON 格式内容:', text);
+                    throw new Error(`接口响应异常 (HTTP ${res.status}): ${text.slice(0, 120)}`);
+                }
             };
 
             const fetchCharacters = async () => {
